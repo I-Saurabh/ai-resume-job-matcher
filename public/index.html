@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ResumePro | Advanced ATS Builder</title>
+    <title>ResumePro | AI-Powered Resume Builder</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&family=Source+Code+Pro&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -15,132 +15,266 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #2c3e50;
+            -webkit-font-smoothing: antialiased;
+        }
         
         /* Layout */
-        .editor-container { height: calc(100vh - 64px); }
-        .preview-pane { background: #525659; overflow-y: auto; display: flex; justify-content: center; padding: 40px; }
+        .editor-container { height: calc(100vh - 80px); }
+        .preview-pane { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow-y: auto; 
+            display: flex; 
+            justify-content: center; 
+            padding: 40px 20px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
+        }
         
         /* The Resume Canvas */
         .resume-canvas {
-            width: 210mm; min-height: 297mm; background: white; padding: 15mm 20mm;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3); transition: all 0.3s ease;
-            color: #000; line-height: 1.5; word-wrap: break-word;
+            width: 210mm; 
+            min-height: 297mm; 
+            background: white; 
+            padding: 18mm 22mm;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25); 
+            transition: all 0.3s ease;
+            color: #1a1a1a; 
+            line-height: 1.6; 
+            word-wrap: break-word;
         }
 
         /* --- TEMPLATES --- */
         /* 1. Professional (ATS Standard) */
-        .tpl-pro .section-title { border-bottom: 1.5pt solid #000; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; margin-top: 15px; font-size: 11pt; }
-        .tpl-pro .item-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 10.5pt; }
-        .tpl-pro .item-sub { font-style: italic; color: #374151; font-size: 10pt; }
+        .tpl-pro .section-title { 
+            border-bottom: 2.5pt solid #667eea; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            margin-bottom: 10px; 
+            margin-top: 18px; 
+            font-size: 11pt; 
+            color: #667eea;
+            letter-spacing: 0.5px;
+        }
+        .tpl-pro .item-header { display: flex; justify-content: space-between; font-weight: 700; font-size: 10.5pt; color: #1a1a1a; }
+        .tpl-pro .item-sub { font-style: italic; color: #555; font-size: 10pt; font-weight: 500; }
+        .tpl-pro h1 { font-size: 26pt; font-weight: 800; color: #1a1a1a; margin-bottom: 4pt; letter-spacing: -0.5px; }
+        .tpl-pro .contact-info { font-size: 9.5pt; color: #555; line-height: 1.4; }
 
         /* 2. Modern (Accented) */
-        .tpl-modern { border-top: 8px solid #2563eb; }
-        .tpl-modern .section-title { color: #2563eb; font-weight: 800; font-size: 10pt; text-transform: uppercase; letter-spacing: 1px; margin: 15px 0 5px 0; }
-        .tpl-modern h1 { font-size: 28pt; font-weight: 800; color: #1e3a8a; }
+        .tpl-modern { border-top: 6px solid #667eea; }
+        .tpl-modern .section-title { 
+            color: #667eea; 
+            font-weight: 800; 
+            font-size: 11pt; 
+            text-transform: uppercase; 
+            letter-spacing: 1.2px; 
+            margin: 16px 0 8px 0;
+            border-left: 4px solid #667eea;
+            padding-left: 8px;
+        }
+        .tpl-modern h1 { 
+            font-size: 28pt; 
+            font-weight: 800; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 4pt;
+        }
 
-        /* 3. Executive (Centered) */
-        .tpl-exec { text-align: center; }
-        .tpl-exec .item-header { justify-content: center; gap: 10px; }
-        .tpl-exec .section-title { border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; padding: 4px 0; margin: 20px 0 10px 0; }
+        /* 3. Elegant (Centered) */
+        .tpl-elegant { text-align: center; }
+        .tpl-elegant h1 { 
+            font-family: 'Merriweather', serif;
+            font-size: 32pt; 
+            font-weight: 700; 
+            color: #1a1a1a; 
+            margin-bottom: 8pt;
+            letter-spacing: -1px;
+        }
+        .tpl-elegant .section-title { 
+            border-top: 1px solid #ddd; 
+            border-bottom: 1px solid #ddd; 
+            padding: 8px 0; 
+            margin: 16px auto; 
+            font-weight: 700;
+            color: #333;
+        }
 
-        .input-group { border-left: 3px solid #e5e7eb; padding-left: 12px; margin-bottom: 15px; }
-        .input-group:focus-within { border-left-color: #2563eb; }
+        .input-group { 
+            border-left: 3px solid #e0e7ff; 
+            padding-left: 12px; 
+            margin-bottom: 15px;
+            transition: all 0.2s;
+        }
+        .input-group:focus-within { 
+            border-left-color: #667eea;
+            background: #f8f9ff;
+            padding-left: 14px;
+        }
         
         .hidden { display: none !important; }
         @media print { .no-print { display: none; } }
+
+        /* Navigation & Button Styles */
+        .nav-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .btn-primary { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            transition: all 0.3s;
+        }
+        .btn-primary:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .import-box {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border: 2px dashed #667eea;
+            transition: all 0.3s;
+        }
+        .import-box:hover { 
+            border-color: #764ba2;
+            background: linear-gradient(135deg, #667eea25 0%, #764ba225 100%);
+        }
+
+        .label-premium {
+            font-weight: 700;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            color: #667eea;
+            text-transform: uppercase;
+        }
+
+        input, textarea, select {
+            transition: all 0.2s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .parsing-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 6px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="overflow-hidden">
 
     <!-- Navigation -->
-    <nav class="h-16 bg-white border-b flex justify-between items-center px-8 z-50">
-        <div class="flex items-center gap-2">
-            <div class="bg-blue-600 text-white w-8 h-8 rounded flex items-center justify-center font-bold">R</div>
-            <span class="font-bold text-xl tracking-tight">ResumePro</span>
+    <nav class="h-20 nav-gradient flex justify-between items-center px-8 z-50 shadow-lg">
+        <div class="flex items-center gap-3">
+            <div class="bg-white/20 backdrop-blur text-white w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg">R</div>
+            <div>
+                <span class="font-bold text-2xl tracking-tight text-white block">ResumePro</span>
+                <span class="text-xs text-white/70">AI-Powered Resume Builder</span>
+            </div>
         </div>
         
         <div class="flex items-center gap-6">
-            <select id="tplSelect" onchange="updateTemplate(this.value)" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="tpl-pro">Template: Professional ATS</option>
-                <option value="tpl-modern">Template: Modern Accent</option>
-                <option value="tpl-exec">Template: Executive Centered</option>
+            <select id="tplSelect" onchange="updateTemplate(this.value)" class="bg-white/10 backdrop-blur text-white border border-white/20 text-sm rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-white/50 cursor-pointer font-medium">
+                <option value="tpl-pro" style="color: #1a1a1a;">Template: Professional</option>
+                <option value="tpl-modern" style="color: #1a1a1a;">Template: Modern</option>
+                <option value="tpl-elegant" style="color: #1a1a1a;">Template: Elegant</option>
             </select>
-            <button onclick="downloadPDF()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg">Download PDF</button>
+            <button onclick="downloadPDF()" class="btn-primary px-7 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg">
+                ⬇️ Download PDF
+            </button>
             <div id="authArea">
-                <button id="loginBtn" class="text-sm font-semibold text-gray-600 underline">Login</button>
+                <button id="loginBtn" class="text-sm font-semibold text-white/80 hover:text-white transition">Sign In</button>
             </div>
         </div>
     </nav>
 
     <div class="flex editor-container">
         <!-- Sidebar Editor -->
-        <aside class="w-1/3 bg-white border-r overflow-y-auto p-8 shadow-inner">
+        <aside class="w-1/3 bg-white overflow-y-auto p-8 shadow-xl border-r border-gray-100">
             
             <!-- Smart Import -->
-            <div class="mb-10 bg-blue-50 p-6 rounded-2xl border border-blue-100">
-                <h3 class="text-blue-900 font-bold text-sm uppercase mb-2">Smart Import</h3>
+            <div class="mb-10 import-box p-6 rounded-2xl">
+                <h3 class="text-gray-800 font-bold text-sm uppercase mb-1">📄 Smart Import</h3>
+                <p class="text-xs text-gray-500 mb-4">Upload your LinkedIn PDF and we'll extract your data</p>
                 <input type="file" id="pdfUpload" class="hidden" accept="application/pdf">
-                <button onclick="document.getElementById('pdfUpload').click()" class="w-full bg-white border-2 border-blue-400 text-blue-600 py-3 rounded-xl font-bold hover:bg-blue-600 hover:text-white transition">
-                    Upload LinkedIn PDF
+                <button onclick="document.getElementById('pdfUpload').click()" class="w-full bg-white border-2 border-dashed border-gray-300 text-gray-700 py-3 rounded-xl font-semibold hover:border-blue-500 hover:bg-blue-50 transition">
+                    📥 Upload LinkedIn PDF
                 </button>
-                <p class="text-[10px] text-blue-400 mt-2 text-center">We will auto-structure your experience and education.</p>
+                <p class="text-xs text-gray-400 mt-3 text-center">Auto-extracts experience, education & skills</p>
+                <div id="parseStatus" class="mt-3 text-xs text-gray-500 hidden">
+                    <span class="parsing-indicator"></span><span id="parseMsg">Processing...</span>
+                </div>
             </div>
 
             <!-- Editor Sections -->
-            <div class="space-y-12">
+            <div class="space-y-10">
                 
                 <!-- 1. Contact -->
                 <section>
-                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Contact Information</h3>
+                    <h3 class="label-premium mb-5 text-gray-600">👤 Contact Information</h3>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="col-span-2">
-                            <label class="text-[10px] uppercase font-bold text-gray-400">Full Name</label>
-                            <input type="text" id="in-name" oninput="sync()" class="w-full border-b py-1 focus:border-blue-500 outline-none font-semibold text-lg">
+                            <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Full Name *</label>
+                            <input type="text" id="in-name" oninput="sync()" class="w-full border-b-2 border-gray-200 py-2 focus:border-blue-500 outline-none font-semibold text-base">
                         </div>
                         <div>
-                            <label class="text-[10px] uppercase font-bold text-gray-400">Email</label>
-                            <input type="text" id="in-email" oninput="sync()" class="w-full border-b py-1 text-sm outline-none">
+                            <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Email</label>
+                            <input type="email" id="in-email" oninput="sync()" class="w-full border-b-2 border-gray-200 py-2 focus:border-blue-500 outline-none text-sm">
                         </div>
                         <div>
-                            <label class="text-[10px] uppercase font-bold text-gray-400">Phone</label>
-                            <input type="text" id="in-phone" oninput="sync()" class="w-full border-b py-1 text-sm outline-none">
+                            <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Phone</label>
+                            <input type="tel" id="in-phone" oninput="sync()" class="w-full border-b-2 border-gray-200 py-2 focus:border-blue-500 outline-none text-sm">
                         </div>
                         <div class="col-span-2">
-                            <label class="text-[10px] uppercase font-bold text-gray-400">Location (City, Country)</label>
-                            <input type="text" id="in-loc" oninput="sync()" class="w-full border-b py-1 text-sm outline-none">
+                            <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Location</label>
+                            <input type="text" id="in-loc" oninput="sync()" class="w-full border-b-2 border-gray-200 py-2 focus:border-blue-500 outline-none text-sm" placeholder="City, Country">
                         </div>
                     </div>
                 </section>
 
                 <!-- 2. Summary -->
                 <section>
-                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Professional Summary</h3>
-                    <textarea id="in-sum" oninput="sync()" rows="4" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"></textarea>
+                    <h3 class="label-premium mb-5 text-gray-600">✨ Professional Summary</h3>
+                    <textarea id="in-sum" oninput="sync()" rows="4" class="w-full border-2 border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 resize-none"></textarea>
                 </section>
 
                 <!-- 3. Experience -->
                 <section id="sec-exp">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Experience</h3>
-                        <button onclick="addItem('exp')" class="text-blue-600 text-xs font-bold">+ Add</button>
+                    <div class="flex justify-between items-center mb-5">
+                        <h3 class="label-premium text-gray-600">💼 Experience</h3>
+                        <button onclick="addItem('exp')" class="text-blue-600 text-xs font-bold hover:text-blue-700 transition">+ Add Entry</button>
                     </div>
                     <div id="list-exp" class="space-y-6"></div>
                 </section>
 
                 <!-- 4. Education -->
                 <section id="sec-edu">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Education</h3>
-                        <button onclick="addItem('edu')" class="text-blue-600 text-xs font-bold">+ Add</button>
+                    <div class="flex justify-between items-center mb-5">
+                        <h3 class="label-premium text-gray-600">🎓 Education</h3>
+                        <button onclick="addItem('edu')" class="text-blue-600 text-xs font-bold hover:text-blue-700 transition">+ Add Entry</button>
                     </div>
                     <div id="list-edu" class="space-y-6"></div>
                 </section>
 
                 <!-- 5. Skills -->
                 <section>
-                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Skills (Comma Separated)</h3>
-                    <textarea id="in-skills" oninput="sync()" placeholder="Java, Spring Boot, Angular..." class="w-full border rounded-lg p-3 text-sm outline-none bg-gray-50"></textarea>
+                    <h3 class="label-premium mb-5 text-gray-600">🛠️ Skills</h3>
+                    <textarea id="in-skills" oninput="sync()" placeholder="Java, Spring Boot, React, AWS..." rows="3" class="w-full border-2 border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-gray-50 resize-none"></textarea>
+                    <p class="text-xs text-gray-400 mt-2">Separate skills with commas</p>
                 </section>
             </div>
             <div class="h-20"></div>
@@ -169,10 +303,10 @@
 
         let resume = {
             template: 'tpl-pro',
-            name: 'Saurabh Pandey',
-            email: 'imsaurabh.sp987@gmail.com',
-            phone: '9508744480',
-            location: 'Chennai, India',
+            name: 'Your Name',
+            email: 'your.email@example.com',
+            phone: '+1 (555) 123-4567',
+            location: 'City, Country',
             summary: '',
             skills: '',
             experience: [],
@@ -210,13 +344,13 @@
             expList.innerHTML = "";
             resume.experience.forEach((item, i) => {
                 const div = document.createElement('div');
-                div.className = "input-group border-l-4 p-4 bg-gray-50 rounded-r-lg relative";
+                div.className = "input-group border-l-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-r-lg relative";
                 div.innerHTML = `
-                    <button onclick="removeItem('exp', ${i})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 text-xs font-bold">REMOVE</button>
-                    <input type="text" placeholder="Company Name" value="${item.company}" oninput="resume.experience[${i}].company=this.value;sync()" class="w-full font-bold bg-transparent outline-none mb-1">
-                    <input type="text" placeholder="Role / Job Title" value="${item.role}" oninput="resume.experience[${i}].role=this.value;sync()" class="w-full text-sm bg-transparent outline-none mb-1">
+                    <button onclick="removeItem('exp', ${i})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 text-sm font-bold transition">✕</button>
+                    <input type="text" placeholder="Company Name" value="${item.company}" oninput="resume.experience[${i}].company=this.value;sync()" class="w-full font-bold bg-transparent outline-none mb-3 text-sm" required>
+                    <input type="text" placeholder="Job Title" value="${item.role}" oninput="resume.experience[${i}].role=this.value;sync()" class="w-full text-sm bg-transparent outline-none mb-2">
                     <input type="text" placeholder="Jan 2022 - Present" value="${item.date}" oninput="resume.experience[${i}].date=this.value;sync()" class="w-full text-xs text-blue-600 font-medium bg-transparent outline-none mb-2">
-                    <textarea placeholder="Key Achievements..." oninput="resume.experience[${i}].desc=this.value;sync()" class="w-full text-xs bg-white border p-2 rounded">${item.desc}</textarea>
+                    <textarea placeholder="Key achievements and responsibilities..." oninput="resume.experience[${i}].desc=this.value;sync()" class="w-full text-xs bg-white border border-gray-200 p-2 rounded resize-none focus:ring-2 focus:ring-blue-300">${item.desc}</textarea>
                 `;
                 expList.appendChild(div);
             });
@@ -226,14 +360,14 @@
             eduList.innerHTML = "";
             resume.education.forEach((item, i) => {
                 const div = document.createElement('div');
-                div.className = "input-group border-l-4 p-4 bg-gray-50 rounded-r-lg relative";
+                div.className = "input-group border-l-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-r-lg relative";
                 div.innerHTML = `
-                    <button onclick="removeItem('edu', ${i})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 text-xs font-bold">REMOVE</button>
-                    <input type="text" placeholder="University / School" value="${item.school}" oninput="resume.education[${i}].school=this.value;sync()" class="w-full font-bold bg-transparent outline-none mb-1">
-                    <input type="text" placeholder="Degree / Major" value="${item.degree}" oninput="resume.education[${i}].degree=this.value;sync()" class="w-full text-sm bg-transparent outline-none mb-1">
+                    <button onclick="removeItem('edu', ${i})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 text-sm font-bold transition">✕</button>
+                    <input type="text" placeholder="University / School" value="${item.school}" oninput="resume.education[${i}].school=this.value;sync()" class="w-full font-bold bg-transparent outline-none mb-3 text-sm" required>
+                    <input type="text" placeholder="Degree & Major" value="${item.degree}" oninput="resume.education[${i}].degree=this.value;sync()" class="w-full text-sm bg-transparent outline-none mb-2">
                     <div class="flex gap-2">
                         <input type="text" placeholder="2019 - 2023" value="${item.date}" oninput="resume.education[${i}].date=this.value;sync()" class="flex-1 text-xs text-blue-600 bg-transparent outline-none">
-                        <input type="text" placeholder="Score (Optional)" value="${item.score}" oninput="resume.education[${i}].score=this.value;sync()" class="w-1/3 text-xs bg-transparent outline-none text-right">
+                        <input type="text" placeholder="GPA (Optional)" value="${item.score}" oninput="resume.education[${i}].score=this.value;sync()" class="w-1/3 text-xs bg-transparent outline-none">
                     </div>
                 `;
                 eduList.appendChild(div);
@@ -243,10 +377,10 @@
         // --- 4. ENGINE: REAL-TIME PREVIEW ---
         function sync() {
             // Update Data from Static Fields
-            resume.name = document.getElementById('in-name').value;
-            resume.email = document.getElementById('in-email').value;
-            resume.phone = document.getElementById('in-phone').value;
-            resume.location = document.getElementById('in-loc').value;
+            resume.name = document.getElementById('in-name').value || 'Your Name';
+            resume.email = document.getElementById('in-email').value || 'email@example.com';
+            resume.phone = document.getElementById('in-phone').value || '+1 (555) 000-0000';
+            resume.location = document.getElementById('in-loc').value || 'City, Country';
             resume.summary = document.getElementById('in-sum').value;
             resume.skills = document.getElementById('in-skills').value;
 
@@ -255,43 +389,45 @@
 
             let html = `
                 <div class="text-center mb-6">
-                    <h1 class="text-3xl font-bold uppercase tracking-tight mb-1">${resume.name}</h1>
-                    <div class="text-xs space-x-2">
-                        <span>${resume.email}</span>
-                        <span>•</span>
-                        <span>${resume.phone}</span>
-                        <span>•</span>
-                        <span>${resume.location}</span>
+                    <h1>${resume.name}</h1>
+                    <div class="contact-info">
+                        ${resume.email ? '<span>' + resume.email + '</span>' : ''}
+                        ${resume.phone ? '<span>•</span><span>' + resume.phone + '</span>' : ''}
+                        ${resume.location ? '<span>•</span><span>' + resume.location + '</span>' : ''}
                     </div>
                 </div>
             `;
 
             if(resume.summary) {
-                html += `<div class="section-title">Summary</div><p class="text-[10pt]">${resume.summary}</p>`;
+                html += `<div class="section-title">Professional Summary</div><p class="text-[10pt] mb-2">${resume.summary}</p>`;
             }
 
             if(resume.experience.length > 0) {
                 html += `<div class="section-title">Experience</div>`;
                 resume.experience.forEach(exp => {
-                    html += `
-                        <div class="mb-4">
-                            <div class="item-header"><span>${exp.company}</span><span>${exp.date}</span></div>
-                            <div class="item-sub">${exp.role}</div>
-                            <div class="text-[9.5pt] mt-1 whitespace-pre-line">${exp.desc}</div>
-                        </div>
-                    `;
+                    if(exp.company || exp.role) {
+                        html += `
+                            <div class="mb-4">
+                                <div class="item-header"><span>${exp.company || 'Company'}</span><span>${exp.date}</span></div>
+                                <div class="item-sub">${exp.role}</div>
+                                <div class="text-[9.5pt] mt-1 whitespace-pre-line">${exp.desc}</div>
+                            </div>
+                        `;
+                    }
                 });
             }
 
             if(resume.education.length > 0) {
                 html += `<div class="section-title">Education</div>`;
                 resume.education.forEach(edu => {
-                    html += `
-                        <div class="mb-3">
-                            <div class="item-header"><span>${edu.school}</span><span>${edu.date}</span></div>
-                            <div class="item-sub">${edu.degree} ${edu.score ? '— '+edu.score : ''}</div>
-                        </div>
-                    `;
+                    if(edu.school || edu.degree) {
+                        html += `
+                            <div class="mb-3">
+                                <div class="item-header"><span>${edu.school || 'School'}</span><span>${edu.date}</span></div>
+                                <div class="item-sub">${edu.degree} ${edu.score ? '— ' + edu.score : ''}</div>
+                            </div>
+                        `;
+                    }
                 });
             }
 
@@ -307,86 +443,157 @@
             sync();
         }
 
-        // --- 5. SMART PDF PARSER (Optimized for structured text) ---
+        // --- 5. IMPROVED SMART PDF PARSER ---
         document.getElementById('pdfUpload').onchange = async function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
+            const statusEl = document.getElementById('parseStatus');
+            statusEl.classList.remove('hidden');
+            document.getElementById('parseMsg').innerText = 'Reading PDF...';
+
             const reader = new FileReader();
             reader.onload = async function() {
-                const typedarray = new Uint8Array(this.result);
-                const pdf = await pdfjsLib.getDocument(typedarray).promise;
-                let fullText = [];
+                try {
+                    const typedarray = new Uint8Array(this.result);
+                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    let fullText = [];
 
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const content = await page.getTextContent();
-                    content.items.forEach(item => fullText.push(item.str));
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        content.items.forEach(item => fullText.push(item.str));
+                    }
+                    
+                    document.getElementById('parseMsg').innerText = 'Processing data...';
+                    setTimeout(() => {
+                        processStructuredText(fullText.join("\n"));
+                        statusEl.classList.add('hidden');
+                    }, 500);
+                } catch (err) {
+                    document.getElementById('parseMsg').innerText = 'Error reading PDF. Please try again.';
+                    console.error(err);
+                    setTimeout(() => statusEl.classList.add('hidden'), 2000);
                 }
-                processStructuredText(fullText.join("\n"));
             };
             reader.readAsArrayBuffer(file);
         };
 
         function processStructuredText(text) {
+            // Keywords to filter out (headers, footers, etc.)
+            const filterKeywords = ['Contact', 'Links', 'Languages', 'Certifications', 'Licenses', 'Volunteer', 'Publications', 'Projects', 'Patents'];
+            
             // Reset Arrays
             resume.experience = [];
             resume.education = [];
 
-            // 1. Basic Identity
-            const lines = text.split('\n').filter(l => l.trim().length > 1);
-            resume.name = lines[0] || "";
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            
+            // 1. Extract Name (longest string in first 5 lines, excluding known headers)
+            let nameIdx = 0;
+            for(let i = 0; i < Math.min(5, lines.length); i++) {
+                if(!filterKeywords.some(kw => lines[i].includes(kw)) && lines[i].length < 50 && lines[i].length > 3) {
+                    nameIdx = i;
+                    break;
+                }
+            }
+            resume.name = lines[nameIdx] || "Your Name";
 
-            // 2. Summary
-            const summaryMatch = text.match(/Summary\s*(.*?)\s*(Experience|Education|Skills|$)/s);
-            if (summaryMatch) resume.summary = summaryMatch[1].trim();
+            // 2. Extract Summary (look between Summary and Experience/Education)
+            const summaryMatch = text.match(/(?:About|Summary|Professional Summary)\s*\n([\s\S]*?)(?:\n(?:Experience|EXPERIENCE|Education|EDUCATION|Skills|Top Skills))/i);
+            if (summaryMatch) {
+                resume.summary = summaryMatch[1].split('\n').map(l => l.trim()).filter(l => l.length > 0).join(' ').substring(0, 300);
+            }
 
-            // 3. Skills
-            const skillsMatch = text.match(/Top Skills\s*(.*?)\s*(Languages|Certifications|Experience|$)/s);
-            if (skillsMatch) resume.skills = skillsMatch[1].replace(/\n/g, ', ').trim();
+            // 3. Extract Skills
+            const skillsMatch = text.match(/(?:Top Skills|Skills)\s*\n([\s\S]*?)(?:\n(?:Experience|EXPERIENCE|Education|EDUCATION|Languages|Certifications))/i);
+            if (skillsMatch) {
+                const skillText = skillsMatch[1].split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.includes('Endorsements'));
+                resume.skills = skillText.slice(0, 15).join(', ');
+            }
 
-            // 4. Experience Parsing (Improved Logic)
-            const expPart = text.split(/Experience/i)[1]?.split(/Education/i)[0];
-            if(expPart) {
-                const expLines = expPart.split('\n').filter(l => l.trim().length > 0);
-                let currentItem = null;
+            // 4. Advanced Experience Parsing
+            const expRegex = /(?:Experience|EXPERIENCE)([\s\S]*?)(?=Education|EDUCATION|Skills|Top Skills|$)/i;
+            const expMatch = text.match(expRegex);
+            if (expMatch) {
+                const expText = expMatch[1];
+                const jobBlocks = expText.split(/\n(?=[A-Z][a-z]+\s+(?:at|–|-|\|))/);
+                
+                jobBlocks.forEach(block => {
+                    const blockLines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                    if (blockLines.length === 0) return;
 
-                expLines.forEach(line => {
-                    // Detect Date Range
-                    if(line.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Present|\d{4})/i)) {
-                        if(currentItem) currentItem.date = line.trim();
-                    } 
-                    // Detect Company/Role (If line is short and doesn't contain common words)
-                    else if (line.length < 50 && line.length > 2) {
-                        if(currentItem) resume.experience.push(currentItem);
-                        currentItem = { company: line.trim(), role: 'Role Placeholder', date: '', desc: '' };
+                    let company = '', role = '', date = '', desc = '';
+
+                    // First non-empty line is usually company + role
+                    const firstLine = blockLines[0];
+                    const parts = firstLine.split(/\s+(?:at|–|-|\|)\s+/);
+                    
+                    if (parts.length === 2) {
+                        role = parts[0];
+                        company = parts[1];
+                    } else {
+                        company = firstLine;
                     }
-                    else {
-                        if(currentItem) currentItem.desc += line + "\n";
+
+                    // Find dates (lines containing years or month names)
+                    for(let i = 1; i < blockLines.length; i++) {
+                        if (blockLines[i].match(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Present|\d{4})/i)) {
+                            date = blockLines[i];
+                            desc = blockLines.slice(i + 1).join('\n');
+                            break;
+                        } else if (i === 1) {
+                            desc = blockLines.slice(i).join('\n');
+                        }
+                    }
+
+                    if (company.length > 2 && company.length < 100) {
+                        resume.experience.push({
+                            company: company.trim(),
+                            role: role.trim(),
+                            date: date.trim(),
+                            desc: desc.substring(0, 300).trim()
+                        });
                     }
                 });
-                if(currentItem) resume.experience.push(currentItem);
             }
 
             // 5. Education Parsing
-            const eduPart = text.split(/Education/i)[1];
-            if(eduPart) {
-                const eduLines = eduPart.split('\n').filter(l => l.trim().length > 0);
-                for(let i=0; i < eduLines.length; i+=2) {
-                    if(eduLines[i]) {
+            const eduRegex = /(?:Education|EDUCATION)([\s\S]*?)(?=Skills|Top Skills|$)/i;
+            const eduMatch = text.match(eduRegex);
+            if (eduMatch) {
+                const eduText = eduMatch[1];
+                const schools = eduText.split(/\n(?=[A-Z])/);
+                
+                schools.forEach(school => {
+                    const lines = school.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                    if (lines.length === 0) return;
+                    
+                    let schoolName = lines[0];
+                    let degree = lines[1] || '';
+                    let date = '';
+                    
+                    for(let i = 2; i < lines.length; i++) {
+                        if (lines[i].match(/\d{4}/)) {
+                            date = lines[i];
+                            break;
+                        }
+                    }
+                    
+                    if (schoolName.length > 3 && schoolName.length < 100 && !filterKeywords.some(kw => schoolName.includes(kw))) {
                         resume.education.push({
-                            school: eduLines[i].trim(),
-                            degree: eduLines[i+1] ? eduLines[i+1].trim() : "",
-                            date: "",
-                            score: ""
+                            school: schoolName,
+                            degree: degree,
+                            date: date,
+                            score: ''
                         });
                     }
-                }
+                });
             }
 
             renderEditor();
             sync();
-            alert("Parsing complete! We've categorized your data into the fields below.");
+            alert("✅ Parsing complete! Data has been extracted and populated. Please review and edit as needed.");
         }
 
         // Initial Run
@@ -395,7 +602,12 @@
 
         function downloadPDF() {
             const element = document.getElementById('resume-canvas');
-            const opt = { margin: 0, filename: 'Resume.pdf', html2canvas: { scale: 3 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+            const opt = { 
+                margin: 0, 
+                filename: 'resume-' + Date.now() + '.pdf', 
+                html2canvas: { scale: 3 }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            };
             html2pdf().set(opt).from(element).save();
         }
     </script>
