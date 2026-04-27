@@ -3,162 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ResumePro | Pro ATS Builder</title>
-    <!-- Dependencies -->
+    <title>ResumePro | Advanced ATS Builder</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&family=Source+Code+Pro&display=swap" rel="stylesheet">
     
-    <!-- Firebase (Compat Version) -->
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 
     <style>
-        :root { --accent: #2563eb; }
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #1f2937; }
         
-        /* Sidebar Scroll */
-        .editor-sidebar::-webkit-scrollbar { width: 5px; }
-        .editor-sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
-        /* Resume Preview Styling */
-        #resume-canvas { 
-            width: 210mm; min-height: 297mm; padding: 15mm; 
-            margin: auto; background: white; transition: all 0.3s ease;
+        /* Layout */
+        .editor-container { height: calc(100vh - 64px); }
+        .preview-pane { background: #525659; overflow-y: auto; display: flex; justify-content: center; padding: 40px; }
+        
+        /* The Resume Canvas */
+        .resume-canvas {
+            width: 210mm; min-height: 297mm; background: white; padding: 15mm 20mm;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3); transition: all 0.3s ease;
+            color: #000; line-height: 1.5; word-wrap: break-word;
         }
 
-        /* Template: Modern */
-        .tpl-modern { font-family: 'Inter', sans-serif; }
-        .tpl-modern h1 { color: var(--accent); font-size: 28pt; border: none; }
-        .tpl-modern h2 { border-left: 4px solid var(--accent); padding-left: 10px; background: #f8fafc; }
+        /* --- TEMPLATES --- */
+        /* 1. Professional (ATS Standard) */
+        .tpl-pro .section-title { border-bottom: 1.5pt solid #000; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; margin-top: 15px; font-size: 11pt; }
+        .tpl-pro .item-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 10.5pt; }
+        .tpl-pro .item-sub { font-style: italic; color: #374151; font-size: 10pt; }
 
-        /* Template: Classic */
-        .tpl-classic { font-family: 'Lora', serif; line-height: 1.4; }
-        .tpl-classic h1 { text-align: center; border-bottom: 2px solid #000; }
-        .tpl-classic h2 { text-align: center; text-transform: uppercase; border-bottom: 1px solid #000; }
+        /* 2. Modern (Accented) */
+        .tpl-modern { border-top: 8px solid #2563eb; }
+        .tpl-modern .section-title { color: #2563eb; font-weight: 800; font-size: 10pt; text-transform: uppercase; letter-spacing: 1px; margin: 15px 0 5px 0; }
+        .tpl-modern h1 { font-size: 28pt; font-weight: 800; color: #1e3a8a; }
 
-        /* Template: Minimal */
-        .tpl-minimal { font-family: 'Inter', sans-serif; font-size: 10pt; }
-        .tpl-minimal h1 { font-weight: 400; letter-spacing: 2px; }
-        .tpl-minimal h2 { font-weight: 600; border: none; text-decoration: underline; }
+        /* 3. Executive (Centered) */
+        .tpl-exec { text-align: center; }
+        .tpl-exec .item-header { justify-content: center; gap: 10px; }
+        .tpl-exec .section-title { border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; padding: 4px 0; margin: 20px 0 10px 0; }
 
-        .section-drag-handle { cursor: grab; }
-        .ad-banner { background: #f8fafc; border: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 12px; }
+        .input-group { border-left: 3px solid #e5e7eb; padding-left: 12px; margin-bottom: 15px; }
+        .input-group:focus-within { border-left-color: #2563eb; }
         
+        .hidden { display: none !important; }
         @media print { .no-print { display: none; } }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+<body class="overflow-hidden">
 
-    <!-- Navbar -->
-    <nav class="bg-white border-b px-6 py-3 flex justify-between items-center z-50 shrink-0">
+    <!-- Navigation -->
+    <nav class="h-16 bg-white border-b flex justify-between items-center px-8 z-50">
         <div class="flex items-center gap-2">
-            <div class="bg-blue-600 text-white p-1 rounded font-bold">RP</div>
-            <span class="font-bold text-lg tracking-tight">ResumePro</span>
+            <div class="bg-blue-600 text-white w-8 h-8 rounded flex items-center justify-center font-bold">R</div>
+            <span class="font-bold text-xl tracking-tight">ResumePro</span>
         </div>
         
-        <div class="flex items-center gap-4">
-            <div id="auth-ui">
-                <button id="loginBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Sign In</button>
-            </div>
-            <div id="app-ui" class="hidden flex items-center gap-4">
-                <button onclick="showUpgrade()" class="text-xs bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full font-bold hover:bg-amber-200 transition">⚡ UPGRADE</button>
-                <div class="h-8 w-[1px] bg-gray-200"></div>
-                <select id="templateSelector" onchange="changeTemplate(this.value)" class="text-sm border rounded px-2 py-1 outline-none">
-                    <option value="tpl-modern">Template: Modern</option>
-                    <option value="tpl-classic">Template: Classic</option>
-                    <option value="tpl-minimal">Template: Minimal</option>
-                    <option disabled>── Premium ──</option>
-                    <option value="tpl-premium-1">Elite Professional (Paid)</option>
-                    <option value="tpl-premium-2">Creative Sidebar (Paid)</option>
-                </select>
-                <button onclick="exportPDF()" class="bg-slate-900 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg hover:scale-105 transition">Download PDF</button>
-                <button onclick="logout()" class="text-gray-400 hover:text-red-500"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></button>
+        <div class="flex items-center gap-6">
+            <select id="tplSelect" onchange="updateTemplate(this.value)" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="tpl-pro">Template: Professional ATS</option>
+                <option value="tpl-modern">Template: Modern Accent</option>
+                <option value="tpl-exec">Template: Executive Centered</option>
+            </select>
+            <button onclick="downloadPDF()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg">Download PDF</button>
+            <div id="authArea">
+                <button id="loginBtn" class="text-sm font-semibold text-gray-600 underline">Login</button>
             </div>
         </div>
     </nav>
 
-    <!-- Main Workspace -->
-    <div class="flex flex-1 overflow-hidden">
-        
+    <div class="flex editor-container">
         <!-- Sidebar Editor -->
-        <aside class="w-[450px] bg-white border-r flex flex-col no-print">
+        <aside class="w-1/3 bg-white border-r overflow-y-auto p-8 shadow-inner">
             
-            <!-- PDF Upload Header -->
-            <div class="p-6 bg-slate-50 border-b">
-                <h3 class="text-sm font-bold text-slate-800 uppercase mb-3 tracking-widest">Smart Import</h3>
-                <label class="flex flex-col items-center w-full px-4 py-4 bg-white text-blue rounded-lg shadow-sm border border-blue-200 cursor-pointer hover:bg-blue-50 transition">
-                    <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                    <span class="mt-2 text-xs font-semibold">Upload LinkedIn PDF</span>
-                    <input type='file' id="pdf-upload" class="hidden" accept="application/pdf" />
-                </label>
+            <!-- Smart Import -->
+            <div class="mb-10 bg-blue-50 p-6 rounded-2xl border border-blue-100">
+                <h3 class="text-blue-900 font-bold text-sm uppercase mb-2">Smart Import</h3>
+                <input type="file" id="pdfUpload" class="hidden" accept="application/pdf">
+                <button onclick="document.getElementById('pdfUpload').click()" class="w-full bg-white border-2 border-blue-400 text-blue-600 py-3 rounded-xl font-bold hover:bg-blue-600 hover:text-white transition">
+                    Upload LinkedIn PDF
+                </button>
+                <p class="text-[10px] text-blue-400 mt-2 text-center">We will auto-structure your experience and education.</p>
             </div>
 
-            <!-- Sections Editor -->
-            <div class="flex-1 overflow-y-auto p-6 space-y-8 editor-sidebar">
+            <!-- Editor Sections -->
+            <div class="space-y-12">
                 
-                <!-- Basic Info -->
-                <div class="space-y-4">
-                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-tighter">Identity</h4>
-                    <input type="text" id="field-name" placeholder="Full Name" oninput="updateData('name', this.value)" class="w-full border-b py-2 text-lg font-bold focus:border-blue-600 outline-none">
-                    <input type="text" id="field-contact" placeholder="Email | Phone | Location | LinkedIn" oninput="updateData('contact', this.value)" class="w-full border-b py-2 text-sm focus:border-blue-600 outline-none">
-                </div>
+                <!-- 1. Contact -->
+                <section>
+                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Contact Information</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="col-span-2">
+                            <label class="text-[10px] uppercase font-bold text-gray-400">Full Name</label>
+                            <input type="text" id="in-name" oninput="sync()" class="w-full border-b py-1 focus:border-blue-500 outline-none font-semibold text-lg">
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-gray-400">Email</label>
+                            <input type="text" id="in-email" oninput="sync()" class="w-full border-b py-1 text-sm outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[10px] uppercase font-bold text-gray-400">Phone</label>
+                            <input type="text" id="in-phone" oninput="sync()" class="w-full border-b py-1 text-sm outline-none">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-[10px] uppercase font-bold text-gray-400">Location (City, Country)</label>
+                            <input type="text" id="in-loc" oninput="sync()" class="w-full border-b py-1 text-sm outline-none">
+                        </div>
+                    </div>
+                </section>
 
-                <!-- Dynamic Sections -->
-                <div id="dynamic-sections" class="space-y-6">
-                    <!-- Sections like Summary, Experience, etc. will be injected here -->
-                </div>
+                <!-- 2. Summary -->
+                <section>
+                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Professional Summary</h3>
+                    <textarea id="in-sum" oninput="sync()" rows="4" class="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"></textarea>
+                </section>
 
-                <!-- Add Custom Section -->
-                <button onclick="addCustomSection()" class="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-sm font-bold hover:border-blue-300 hover:text-blue-500 transition">+ Add Custom Section</button>
-                
-                <!-- Sidebar Ad -->
-                <div id="sidebarAd" class="ad-banner h-48 w-full rounded-xl mt-10">Advertisement</div>
+                <!-- 3. Experience -->
+                <section id="sec-exp">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Experience</h3>
+                        <button onclick="addItem('exp')" class="text-blue-600 text-xs font-bold">+ Add</button>
+                    </div>
+                    <div id="list-exp" class="space-y-6"></div>
+                </section>
+
+                <!-- 4. Education -->
+                <section id="sec-edu">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Education</h3>
+                        <button onclick="addItem('edu')" class="text-blue-600 text-xs font-bold">+ Add</button>
+                    </div>
+                    <div id="list-edu" class="space-y-6"></div>
+                </section>
+
+                <!-- 5. Skills -->
+                <section>
+                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Skills (Comma Separated)</h3>
+                    <textarea id="in-skills" oninput="sync()" placeholder="Java, Spring Boot, Angular..." class="w-full border rounded-lg p-3 text-sm outline-none bg-gray-50"></textarea>
+                </section>
             </div>
+            <div class="h-20"></div>
         </aside>
 
-        <!-- Previewer -->
-        <main class="flex-1 bg-slate-100 overflow-y-auto p-12 flex flex-col items-center relative">
-            <div id="topAd" class="ad-banner w-[728px] h-[90px] mb-8 shrink-0">Banner Advertisement</div>
-            
-            <!-- The A4 Canvas -->
-            <div id="resume-canvas" class="tpl-modern shadow-2xl">
-                <div id="render-target">
-                    <!-- Resume content rendered here via JS -->
-                </div>
+        <!-- Preview Pane -->
+        <main class="flex-1 preview-pane">
+            <div id="resume-canvas" class="tpl-pro">
+                <!-- Content Injected via JS -->
             </div>
-            
-            <div class="h-20"></div>
         </main>
     </div>
 
-    <!-- Upgrade Modal -->
-    <div id="upgradeModal" class="fixed inset-0 bg-slate-900/80 hidden z-[100] flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl">
-            <div class="text-center">
-                <div class="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span class="text-3xl">🚀</span>
-                </div>
-                <h2 class="text-2xl font-bold text-slate-900">Go Premium</h2>
-                <p class="text-slate-500 mt-2">Break the limits and get hired faster.</p>
-            </div>
-            
-            <div class="mt-8 space-y-4">
-                <div class="flex items-center gap-3 text-sm font-medium">✅ Unlimited PDF Downloads</div>
-                <div class="flex items-center gap-3 text-sm font-medium">✅ 10+ Premium ATS Templates</div>
-                <div class="flex items-center gap-3 text-sm font-medium">✅ Ad-Free Experience</div>
-                <div class="flex items-center gap-3 text-sm font-medium">✅ Priority Support</div>
-            </div>
-
-            <button onclick="processPayment()" class="w-full bg-blue-600 text-white py-4 rounded-xl mt-8 font-bold text-lg hover:bg-blue-700 shadow-lg shadow-blue-200 transition">Upgrade Now - ₹399</button>
-            <button onclick="hideUpgrade()" class="w-full mt-4 text-slate-400 font-medium">Maybe Later</button>
-        </div>
-    </div>
-
     <script>
-        // --- 1. CONFIG & INITIAL STATE ---
+        // --- 1. CONFIG & DATA STATE ---
         const firebaseConfig = {
             apiKey: "AIzaSyCVgVQGsAReD3zG1NREX9dcl1HifizllaE",
             authDomain: "resume-builder-d94ec.firebaseapp.com",
@@ -168,144 +165,150 @@
             appId: "1:524704602425:web:0a7569ae47e80665c670e8"
         };
         firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
         const db = firebase.firestore();
 
-        let resumeData = {
-            name: "John Doe",
-            contact: "john@doe.com | +1 234 567 | New York",
-            template: "tpl-modern",
-            sections: [
-                { id: 'summary', title: 'Summary', content: '', enabled: true },
-                { id: 'experience', title: 'Work Experience', content: '', enabled: true },
-                { id: 'skills', title: 'Technical Skills', content: '', enabled: true },
-                { id: 'education', title: 'Education', content: '', enabled: true },
-                { id: 'projects', title: 'Projects', content: '', enabled: false },
-                { id: 'certs', title: 'Certifications', content: '', enabled: false }
-            ]
+        let resume = {
+            template: 'tpl-pro',
+            name: 'Saurabh Pandey',
+            email: 'imsaurabh.sp987@gmail.com',
+            phone: '9508744480',
+            location: 'Chennai, India',
+            summary: '',
+            skills: '',
+            experience: [],
+            education: []
         };
 
-        let userProfile = { isPremium: false, downloadCount: 0 };
+        // --- 2. ENGINE: ADD/REMOVE ITEMS ---
+        function addItem(type) {
+            const item = type === 'exp' 
+                ? { company: '', role: '', date: '', desc: '' }
+                : { school: '', degree: '', date: '', score: '' };
+            resume[type === 'exp' ? 'experience' : 'education'].push(item);
+            renderEditor();
+            sync();
+        }
 
-        // --- 2. AUTH ---
-        document.getElementById('loginBtn').onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-        function logout() { auth.signOut(); location.reload(); }
+        function removeItem(type, index) {
+            resume[type === 'exp' ? 'experience' : 'education'].splice(index, 1);
+            renderEditor();
+            sync();
+        }
 
-        auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                document.getElementById('auth-ui').classList.add('hidden');
-                document.getElementById('app-ui').classList.remove('hidden');
-                
-                const doc = await db.collection('users').doc(user.uid).get();
-                if (doc.exists) {
-                    userProfile = doc.data();
-                    if (userProfile.resumeData) resumeData = userProfile.resumeData;
-                } else {
-                    await db.collection('users').doc(user.uid).set(userProfile);
-                }
-                renderEditor();
-                renderPreview();
-                updatePremiumUI();
-            }
-        });
-
-        // --- 3. CORE LOGIC: EDITOR & PREVIEW ---
+        // --- 3. UI: EDITOR RENDERING ---
         function renderEditor() {
-            document.getElementById('field-name').value = resumeData.name;
-            document.getElementById('field-contact').value = resumeData.contact;
-            
-            const container = document.getElementById('dynamic-sections');
-            container.innerHTML = "";
+            // Static Fields
+            document.getElementById('in-name').value = resume.name;
+            document.getElementById('in-email').value = resume.email;
+            document.getElementById('in-phone').value = resume.phone;
+            document.getElementById('in-loc').value = resume.location;
+            document.getElementById('in-sum').value = resume.summary;
+            document.getElementById('in-skills').value = resume.skills;
 
-            resumeData.sections.forEach((section, index) => {
+            // List: Experience
+            const expList = document.getElementById('list-exp');
+            expList.innerHTML = "";
+            resume.experience.forEach((item, i) => {
                 const div = document.createElement('div');
-                div.className = `p-4 border rounded-xl bg-white shadow-sm ${!section.enabled ? 'opacity-50' : ''}`;
+                div.className = "input-group border-l-4 p-4 bg-gray-50 rounded-r-lg relative";
                 div.innerHTML = `
-                    <div class="flex justify-between items-center mb-2">
-                        <div class="flex items-center gap-2">
-                            <span class="text-gray-300 font-bold">#${index+1}</span>
-                            <input type="text" value="${section.title}" oninput="updateSectionTitle(${index}, this.value)" class="font-bold text-xs uppercase tracking-widest outline-none bg-transparent">
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="moveSection(${index}, -1)" class="text-gray-400 hover:text-blue-500">↑</button>
-                            <button onclick="moveSection(${index}, 1)" class="text-gray-400 hover:text-blue-500">↓</button>
-                            <input type="checkbox" ${section.enabled ? 'checked' : ''} onchange="toggleSection(${index})">
-                        </div>
-                    </div>
-                    <textarea oninput="updateSectionContent(${index}, this.value)" rows="4" class="w-full text-sm outline-none border-none bg-slate-50 p-2 rounded focus:ring-1 focus:ring-blue-100">${section.content}</textarea>
+                    <button onclick="removeItem('exp', ${i})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 text-xs font-bold">REMOVE</button>
+                    <input type="text" placeholder="Company Name" value="${item.company}" oninput="resume.experience[${i}].company=this.value;sync()" class="w-full font-bold bg-transparent outline-none mb-1">
+                    <input type="text" placeholder="Role / Job Title" value="${item.role}" oninput="resume.experience[${i}].role=this.value;sync()" class="w-full text-sm bg-transparent outline-none mb-1">
+                    <input type="text" placeholder="Jan 2022 - Present" value="${item.date}" oninput="resume.experience[${i}].date=this.value;sync()" class="w-full text-xs text-blue-600 font-medium bg-transparent outline-none mb-2">
+                    <textarea placeholder="Key Achievements..." oninput="resume.experience[${i}].desc=this.value;sync()" class="w-full text-xs bg-white border p-2 rounded">${item.desc}</textarea>
                 `;
-                container.appendChild(div);
+                expList.appendChild(div);
+            });
+
+            // List: Education
+            const eduList = document.getElementById('list-edu');
+            eduList.innerHTML = "";
+            resume.education.forEach((item, i) => {
+                const div = document.createElement('div');
+                div.className = "input-group border-l-4 p-4 bg-gray-50 rounded-r-lg relative";
+                div.innerHTML = `
+                    <button onclick="removeItem('edu', ${i})" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 text-xs font-bold">REMOVE</button>
+                    <input type="text" placeholder="University / School" value="${item.school}" oninput="resume.education[${i}].school=this.value;sync()" class="w-full font-bold bg-transparent outline-none mb-1">
+                    <input type="text" placeholder="Degree / Major" value="${item.degree}" oninput="resume.education[${i}].degree=this.value;sync()" class="w-full text-sm bg-transparent outline-none mb-1">
+                    <div class="flex gap-2">
+                        <input type="text" placeholder="2019 - 2023" value="${item.date}" oninput="resume.education[${i}].date=this.value;sync()" class="flex-1 text-xs text-blue-600 bg-transparent outline-none">
+                        <input type="text" placeholder="Score (Optional)" value="${item.score}" oninput="resume.education[${i}].score=this.value;sync()" class="w-1/3 text-xs bg-transparent outline-none text-right">
+                    </div>
+                `;
+                eduList.appendChild(div);
             });
         }
 
-        function renderPreview() {
-            const target = document.getElementById('render-target');
+        // --- 4. ENGINE: REAL-TIME PREVIEW ---
+        function sync() {
+            // Update Data from Static Fields
+            resume.name = document.getElementById('in-name').value;
+            resume.email = document.getElementById('in-email').value;
+            resume.phone = document.getElementById('in-phone').value;
+            resume.location = document.getElementById('in-loc').value;
+            resume.summary = document.getElementById('in-sum').value;
+            resume.skills = document.getElementById('in-skills').value;
+
+            const canvas = document.getElementById('resume-canvas');
+            canvas.className = `resume-canvas ${resume.template}`;
+
             let html = `
-                <div class="text-center mb-8">
-                    <h1 class="text-4xl font-bold mb-2">${resumeData.name}</h1>
-                    <p class="text-sm opacity-80">${resumeData.contact}</p>
+                <div class="text-center mb-6">
+                    <h1 class="text-3xl font-bold uppercase tracking-tight mb-1">${resume.name}</h1>
+                    <div class="text-xs space-x-2">
+                        <span>${resume.email}</span>
+                        <span>•</span>
+                        <span>${resume.phone}</span>
+                        <span>•</span>
+                        <span>${resume.location}</span>
+                    </div>
                 </div>
             `;
 
-            resumeData.sections.forEach(sec => {
-                if (sec.enabled && sec.content.trim() !== "") {
+            if(resume.summary) {
+                html += `<div class="section-title">Summary</div><p class="text-[10pt]">${resume.summary}</p>`;
+            }
+
+            if(resume.experience.length > 0) {
+                html += `<div class="section-title">Experience</div>`;
+                resume.experience.forEach(exp => {
                     html += `
-                        <div class="mb-6">
-                            <h2 class="text-sm font-bold uppercase tracking-widest mb-3 pb-1 border-b">${sec.title}</h2>
-                            <div class="text-[10.5pt] leading-relaxed whitespace-pre-line">${sec.content}</div>
+                        <div class="mb-4">
+                            <div class="item-header"><span>${exp.company}</span><span>${exp.date}</span></div>
+                            <div class="item-sub">${exp.role}</div>
+                            <div class="text-[9.5pt] mt-1 whitespace-pre-line">${exp.desc}</div>
                         </div>
                     `;
-                }
-            });
-
-            target.innerHTML = html;
-            autoSave();
-        }
-
-        // --- 4. STATE MANAGEMENT ---
-        function updateData(key, val) { resumeData[key] = val; renderPreview(); }
-        function updateSectionTitle(idx, val) { resumeData.sections[idx].title = val; renderPreview(); }
-        function updateSectionContent(idx, val) { resumeData.sections[idx].content = val; renderPreview(); }
-        function toggleSection(idx) { resumeData.sections[idx].enabled = !resumeData.sections[idx].enabled; renderEditor(); renderPreview(); }
-        
-        function moveSection(idx, dir) {
-            const newIdx = idx + dir;
-            if (newIdx < 0 || newIdx >= resumeData.sections.length) return;
-            const temp = resumeData.sections[idx];
-            resumeData.sections[idx] = resumeData.sections[newIdx];
-            resumeData.sections[newIdx] = temp;
-            renderEditor();
-            renderPreview();
-        }
-
-        function addCustomSection() {
-            resumeData.sections.push({ id: Date.now().toString(), title: 'New Section', content: '', enabled: true });
-            renderEditor();
-        }
-
-        function changeTemplate(tpl) {
-            if (tpl.includes('premium') && !userProfile.isPremium) {
-                showUpgrade();
-                document.getElementById('templateSelector').value = resumeData.template;
-                return;
+                });
             }
-            resumeData.template = tpl;
-            document.getElementById('resume-canvas').className = tpl;
-            renderPreview();
+
+            if(resume.education.length > 0) {
+                html += `<div class="section-title">Education</div>`;
+                resume.education.forEach(edu => {
+                    html += `
+                        <div class="mb-3">
+                            <div class="item-header"><span>${edu.school}</span><span>${edu.date}</span></div>
+                            <div class="item-sub">${edu.degree} ${edu.score ? '— '+edu.score : ''}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            if(resume.skills) {
+                html += `<div class="section-title">Skills</div><p class="text-[10pt]">${resume.skills}</p>`;
+            }
+
+            canvas.innerHTML = html;
         }
 
-        let saveTimeout;
-        function autoSave() {
-            clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(async () => {
-                if (auth.currentUser) {
-                    await db.collection('users').doc(auth.currentUser.uid).update({ resumeData });
-                }
-            }, 2000);
+        function updateTemplate(val) {
+            resume.template = val;
+            sync();
         }
 
-        // --- 5. PDF PARSER (LinkedIn PDF to Text) ---
-        document.getElementById('pdf-upload').onchange = async function(e) {
+        // --- 5. SMART PDF PARSER (Optimized for structured text) ---
+        document.getElementById('pdfUpload').onchange = async function(e) {
             const file = e.target.files[0];
             if (!file) return;
 
@@ -313,87 +316,87 @@
             reader.onload = async function() {
                 const typedarray = new Uint8Array(this.result);
                 const pdf = await pdfjsLib.getDocument(typedarray).promise;
-                let fullText = "";
+                let fullText = [];
 
                 for (let i = 1; i <= pdf.numPages; i++) {
                     const page = await pdf.getPage(i);
                     const content = await page.getTextContent();
-                    fullText += content.items.map(item => item.str).join(" ") + "\n";
+                    content.items.forEach(item => fullText.push(item.str));
                 }
-
-                smartParse(fullText);
+                processStructuredText(fullText.join("\n"));
             };
             reader.readAsArrayBuffer(file);
         };
 
-        function smartParse(text) {
-            // Basic extraction logic (Regex based)
-            resumeData.name = text.split(" Contact ")[0]?.trim() || "Parsed Name";
-            
-            // Look for sections
-            const sections = [
-                { key: 'Summary', id: 'summary' },
-                { key: 'Experience', id: 'experience' },
-                { key: 'Education', id: 'education' },
-                { key: 'Skills', id: 'skills' }
-            ];
+        function processStructuredText(text) {
+            // Reset Arrays
+            resume.experience = [];
+            resume.education = [];
 
-            sections.forEach(s => {
-                const regex = new RegExp(`${s.key}\\s*(.*?)\\s*(Education|Experience|Skills|Projects|Certifications|$)`, 'i');
-                const match = text.match(regex);
-                if (match && match[1]) {
-                    const targetIdx = resumeData.sections.findIndex(sec => sec.id === s.id);
-                    if (targetIdx !== -1) resumeData.sections[targetIdx].content = match[1].trim();
+            // 1. Basic Identity
+            const lines = text.split('\n').filter(l => l.trim().length > 1);
+            resume.name = lines[0] || "";
+
+            // 2. Summary
+            const summaryMatch = text.match(/Summary\s*(.*?)\s*(Experience|Education|Skills|$)/s);
+            if (summaryMatch) resume.summary = summaryMatch[1].trim();
+
+            // 3. Skills
+            const skillsMatch = text.match(/Top Skills\s*(.*?)\s*(Languages|Certifications|Experience|$)/s);
+            if (skillsMatch) resume.skills = skillsMatch[1].replace(/\n/g, ', ').trim();
+
+            // 4. Experience Parsing (Improved Logic)
+            const expPart = text.split(/Experience/i)[1]?.split(/Education/i)[0];
+            if(expPart) {
+                const expLines = expPart.split('\n').filter(l => l.trim().length > 0);
+                let currentItem = null;
+
+                expLines.forEach(line => {
+                    // Detect Date Range
+                    if(line.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Present|\d{4})/i)) {
+                        if(currentItem) currentItem.date = line.trim();
+                    } 
+                    // Detect Company/Role (If line is short and doesn't contain common words)
+                    else if (line.length < 50 && line.length > 2) {
+                        if(currentItem) resume.experience.push(currentItem);
+                        currentItem = { company: line.trim(), role: 'Role Placeholder', date: '', desc: '' };
+                    }
+                    else {
+                        if(currentItem) currentItem.desc += line + "\n";
+                    }
+                });
+                if(currentItem) resume.experience.push(currentItem);
+            }
+
+            // 5. Education Parsing
+            const eduPart = text.split(/Education/i)[1];
+            if(eduPart) {
+                const eduLines = eduPart.split('\n').filter(l => l.trim().length > 0);
+                for(let i=0; i < eduLines.length; i+=2) {
+                    if(eduLines[i]) {
+                        resume.education.push({
+                            school: eduLines[i].trim(),
+                            degree: eduLines[i+1] ? eduLines[i+1].trim() : "",
+                            date: "",
+                            score: ""
+                        });
+                    }
                 }
-            });
+            }
 
             renderEditor();
-            renderPreview();
-            alert("PDF parsed! Please review the auto-filled fields.");
+            sync();
+            alert("Parsing complete! We've categorized your data into the fields below.");
         }
 
-        // --- 6. EXPORT & PREMIUM ---
-        async function exportPDF() {
-            if (!userProfile.isPremium && userProfile.downloadCount >= 1) {
-                showUpgrade();
-                return;
-            }
+        // Initial Run
+        renderEditor();
+        sync();
 
+        function downloadPDF() {
             const element = document.getElementById('resume-canvas');
-            const opt = {
-                margin: 0,
-                filename: 'Professional_Resume.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            html2pdf().set(opt).from(element).save().then(async () => {
-                if (!userProfile.isPremium) {
-                    userProfile.downloadCount++;
-                    await db.collection('users').doc(auth.currentUser.uid).update({ downloadCount: userProfile.downloadCount });
-                    updatePremiumUI();
-                }
-            });
-        }
-
-        function showUpgrade() { document.getElementById('upgradeModal').classList.remove('hidden'); }
-        function hideUpgrade() { document.getElementById('upgradeModal').classList.add('hidden'); }
-
-        async function processPayment() {
-            alert("In production, this redirects to Razorpay. Simulation: Upgrading to Premium...");
-            userProfile.isPremium = true;
-            await db.collection('users').doc(auth.currentUser.uid).update({ isPremium: true });
-            updatePremiumUI();
-            hideUpgrade();
-        }
-
-        function updatePremiumUI() {
-            if (userProfile.isPremium) {
-                document.getElementById('sidebarAd').remove();
-                document.getElementById('topAd').remove();
-                document.querySelector('button[onclick="showUpgrade()"]').innerHTML = "✨ PREMIUM";
-            }
+            const opt = { margin: 0, filename: 'Resume.pdf', html2canvas: { scale: 3 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+            html2pdf().set(opt).from(element).save();
         }
     </script>
 </body>
