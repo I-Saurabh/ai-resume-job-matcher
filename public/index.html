@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResumePro | Modern ATS Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .resume-page { width: 210mm; min-height: 297mm; background: white; padding: 20mm; margin: auto; box-shadow: 0 0 40px rgba(0,0,0,0.05); }
+        .hidden { display: none !important; }
+        #resume-canvas h1 { font-size: 24pt; font-weight: 700; border-bottom: 2px solid #000; margin-bottom: 8px; text-transform: uppercase; }
+        #resume-canvas h2 { font-size: 13pt; font-weight: 700; border-bottom: 1px solid #ccc; margin: 15px 0 8px; text-transform: uppercase; color: #334155; }
+        #resume-canvas p, #resume-canvas div { font-size: 10.5pt; line-height: 1.6; color: #1a1a1a; }
+        .ad-box { background: #f1f5f9; border: 1px dashed #cbd5e1; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <!-- Header -->
+    <nav class="bg-white border-b px-8 py-4 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-2">
+            <div class="bg-blue-600 text-white w-8 h-8 rounded flex items-center justify-center font-bold">R</div>
+            <span class="font-bold text-xl tracking-tight">ResumePro</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="auth-section">
+                <button id="loginBtn" class="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow-sm">Sign In</button>
+            </div>
+            <div id="user-section" class="hidden flex items-center gap-5">
+                <span id="downloadStatus" class="text-xs font-medium text-slate-500">Free: 1/1 Left</span>
+                <button onclick="downloadPDF()" class="bg-slate-900 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-black">Download PDF</button>
+                <button onclick="logout()" class="text-slate-400">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- App Body -->
+    <div class="flex flex-1 overflow-hidden">
+        <aside class="w-1/3 bg-white border-r p-8 overflow-y-auto">
+            <div class="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                <h4 class="text-blue-800 text-xs font-bold uppercase mb-2">Import from LinkedIn</h4>
+                <div class="flex gap-2">
+                    <input type="text" id="li-url" placeholder="Paste Profile URL" class="flex-1 p-2 rounded text-sm border focus:ring-1 focus:ring-blue-500 outline-none">
+                    <button onclick="importLinkedIn()" id="importBtn" class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold">Go</button>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <input type="text" id="in-name" oninput="sync()" placeholder="Full Name" class="w-full border p-2.5 rounded-lg text-sm">
+                <input type="text" id="in-contact" oninput="sync()" placeholder="Email | Phone | Location" class="w-full border p-2.5 rounded-lg text-sm">
+                <textarea id="in-summary" oninput="sync()" rows="3" placeholder="Summary" class="w-full border p-2.5 rounded-lg text-sm"></textarea>
+                <textarea id="in-exp" oninput="sync()" rows="10" placeholder="Experience (Use • for bullets)" class="w-full border p-2.5 rounded-lg text-sm font-mono"></textarea>
+            </div>
+            <div id="sidebarAd" class="mt-8 ad-box h-40 rounded-xl">Small Sidebar Ad</div>
+        </aside>
+
+        <main class="flex-1 bg-slate-50 p-12 overflow-y-auto">
+            <div id="topAd" class="ad-box w-[728px] h-[90px] mx-auto mb-10 shadow-sm">Banner Ad Space</div>
+            <div id="resume-canvas" class="resume-page">
+                <header class="text-center mb-8"><h1 id="out-name">John Doe</h1><p id="out-contact">Contact details here</p></header>
+                <section><h2>Professional Summary</h2><p id="out-summary">Summary content...</p></section>
+                <section><h2>Experience</h2><div id="out-exp" class="whitespace-pre-line"></div></section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Legal Footer -->
+    <footer class="bg-white border-t py-4 px-8 flex justify-between text-[11px] text-gray-500">
+        <div>&copy; 2024 ResumePro</div>
+        <div class="flex gap-4">
+            <button onclick="openLegal('privacy')">Privacy Policy</button>
+            <button onclick="openLegal('terms')">Terms & Conditions</button>
+            <button onclick="openLegal('refund')">Refund Policy</button>
+            <button onclick="openLegal('contact')">Contact Us</button>
+        </div>
+    </footer>
+
+    <!-- Legal Modal -->
+    <div id="legalModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-[100] p-4">
+        <div class="bg-white w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl p-8 relative">
+            <button onclick="closeLegal()" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <div id="legalContent" class="prose prose-sm text-gray-700"></div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCVgVQGsAReD3zG1NREX9dcl1HifizllaE",
+            authDomain: "resume-builder-d94ec.firebaseapp.com",
+            projectId: "resume-builder-d94ec",
+            storageBucket: "resume-builder-d94ec.firebasestorage.app",
+            messagingSenderId: "524704602425",
+            appId: "1:524704602425:web:0a7569ae47e80665c670e8"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        let userData = null;
+
+        document.getElementById('loginBtn').onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+        function logout() { auth.signOut(); location.reload(); }
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('user-section').classList.remove('hidden');
+                const userRef = db.collection('users').doc(user.uid);
+                const doc = await userRef.get();
+                if (doc.exists) { userData = doc.data(); } 
+                else { userData = { isPremium: false, downloadCount: 0 }; await userRef.set(userData); }
+                updateUI();
+                if(userData.resume) {
+                    document.getElementById('in-name').value = userData.resume.name || "";
+                    document.getElementById('in-contact').value = userData.resume.contact || "";
+                    document.getElementById('in-summary').value = userData.resume.summary || "";
+                    document.getElementById('in-exp').value = userData.resume.exp || "";
+                    sync();
+                }
+            }
+        });
+
+        function sync() {
+            document.getElementById('out-name').innerText = document.getElementById('in-name').value || "Name";
+            document.getElementById('out-contact').innerText = document.getElementById('in-contact').value || "Contact";
+            document.getElementById('out-summary').innerText = document.getElementById('in-summary').value || "Summary...";
+            document.getElementById('out-exp').innerText = document.getElementById('in-exp').value || "Experience...";
+            if(auth.currentUser) {
+                db.collection('users').doc(auth.currentUser.uid).update({
+                    resume: {
+                        name: document.getElementById('in-name').value,
+                        contact: document.getElementById('in-contact').value,
+                        summary: document.getElementById('in-summary').value,
+                        exp: document.getElementById('in-exp').value
+                    }
+                });
+            }
+        }
+
+        async function downloadPDF() {
+            if (!userData.isPremium && userData.downloadCount >= 1) return alert("Monthly Limit Reached. Upgrade for unlimited downloads.");
+            const element = document.getElementById('resume-canvas');
+            html2pdf().from(element).save().then(async () => {
+                userData.downloadCount++;
+                await db.collection('users').doc(auth.currentUser.uid).update({ downloadCount: userData.downloadCount });
+                updateUI();
+            });
+        }
+
+        function updateUI() {
+            document.getElementById('downloadStatus').innerText = userData.isPremium ? "Premium: ∞" : `Free: ${1 - userData.downloadCount}/1 Left`;
+            if(userData.isPremium) { document.getElementById('sidebarAd').remove(); document.getElementById('topAd').remove(); }
+        }
+
+        async function importLinkedIn() {
+            alert("LinkedIn Import is simulated. Connect ProxyCurl API key in script to activate.");
+            document.getElementById('in-name').value = "Sample Candidate";
+            document.getElementById('in-summary').value = "Expert Software Developer with focus on ATS optimization.";
+            document.getElementById('in-exp').value = "Google | Software Engineer\n• Increased efficiency by 20%";
+            sync();
+        }
+
+        const legalData = {
+            privacy: "<h2>Privacy Policy</h2><p>We store your email and resume data in Firebase.</p>",
+            terms: "<h2>Terms</h2><p>Free users get 1 download/month.</p>",
+            refund: "<h2>Refunds</h2><p>Digital downloads are non-refundable.</p>",
+            contact: "<h2>Contact</h2><p>Email: support@resume-builder-d94ec.web.app</p>"
+        };
+        function openLegal(t) { document.getElementById('legalContent').innerHTML = legalData[t]; document.getElementById('legalModal').classList.remove('hidden'); }
+        function closeLegal() { document.getElementById('legalModal').classList.add('hidden'); }
+    </script>
+</body>
+</html>
