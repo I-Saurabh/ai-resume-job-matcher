@@ -3,92 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ResumePro | Modern ATS Builder</title>
+    <title>ResumePro | Pro ATS Builder</title>
+    <!-- Dependencies -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+    
+    <!-- Firebase (Compat Version) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .resume-page { width: 210mm; min-height: 297mm; background: white; padding: 20mm; margin: auto; box-shadow: 0 0 40px rgba(0,0,0,0.05); }
-        .hidden { display: none !important; }
-        #resume-canvas h1 { font-size: 24pt; font-weight: 700; border-bottom: 2px solid #000; margin-bottom: 8px; text-transform: uppercase; }
-        #resume-canvas h2 { font-size: 13pt; font-weight: 700; border-bottom: 1px solid #ccc; margin: 15px 0 8px; text-transform: uppercase; color: #334155; }
-        #resume-canvas p, #resume-canvas div { font-size: 10.5pt; line-height: 1.6; color: #1a1a1a; }
-        .ad-box { background: #f1f5f9; border: 1px dashed #cbd5e1; color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+        :root { --accent: #2563eb; }
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        
+        /* Sidebar Scroll */
+        .editor-sidebar::-webkit-scrollbar { width: 5px; }
+        .editor-sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* Resume Preview Styling */
+        #resume-canvas { 
+            width: 210mm; min-height: 297mm; padding: 15mm; 
+            margin: auto; background: white; transition: all 0.3s ease;
+        }
+
+        /* Template: Modern */
+        .tpl-modern { font-family: 'Inter', sans-serif; }
+        .tpl-modern h1 { color: var(--accent); font-size: 28pt; border: none; }
+        .tpl-modern h2 { border-left: 4px solid var(--accent); padding-left: 10px; background: #f8fafc; }
+
+        /* Template: Classic */
+        .tpl-classic { font-family: 'Lora', serif; line-height: 1.4; }
+        .tpl-classic h1 { text-align: center; border-bottom: 2px solid #000; }
+        .tpl-classic h2 { text-align: center; text-transform: uppercase; border-bottom: 1px solid #000; }
+
+        /* Template: Minimal */
+        .tpl-minimal { font-family: 'Inter', sans-serif; font-size: 10pt; }
+        .tpl-minimal h1 { font-weight: 400; letter-spacing: 2px; }
+        .tpl-minimal h2 { font-weight: 600; border: none; text-decoration: underline; }
+
+        .section-drag-handle { cursor: grab; }
+        .ad-banner { background: #f8fafc; border: 1px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 12px; }
+        
+        @media print { .no-print { display: none; } }
     </style>
 </head>
-<body class="h-screen flex flex-col">
+<body class="h-screen flex flex-col overflow-hidden">
 
-    <!-- Header -->
-    <nav class="bg-white border-b px-8 py-4 flex justify-between items-center shrink-0">
+    <!-- Navbar -->
+    <nav class="bg-white border-b px-6 py-3 flex justify-between items-center z-50 shrink-0">
         <div class="flex items-center gap-2">
-            <div class="bg-blue-600 text-white w-8 h-8 rounded flex items-center justify-center font-bold">R</div>
-            <span class="font-bold text-xl tracking-tight">ResumePro</span>
+            <div class="bg-blue-600 text-white p-1 rounded font-bold">RP</div>
+            <span class="font-bold text-lg tracking-tight">ResumePro</span>
         </div>
+        
         <div class="flex items-center gap-4">
-            <div id="auth-section">
-                <button id="loginBtn" class="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow-sm">Sign In</button>
+            <div id="auth-ui">
+                <button id="loginBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Sign In</button>
             </div>
-            <div id="user-section" class="hidden flex items-center gap-5">
-                <span id="downloadStatus" class="text-xs font-medium text-slate-500">Free: 1/1 Left</span>
-                <button onclick="downloadPDF()" class="bg-slate-900 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-black">Download PDF</button>
-                <button onclick="logout()" class="text-slate-400">Logout</button>
+            <div id="app-ui" class="hidden flex items-center gap-4">
+                <button onclick="showUpgrade()" class="text-xs bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full font-bold hover:bg-amber-200 transition">⚡ UPGRADE</button>
+                <div class="h-8 w-[1px] bg-gray-200"></div>
+                <select id="templateSelector" onchange="changeTemplate(this.value)" class="text-sm border rounded px-2 py-1 outline-none">
+                    <option value="tpl-modern">Template: Modern</option>
+                    <option value="tpl-classic">Template: Classic</option>
+                    <option value="tpl-minimal">Template: Minimal</option>
+                    <option disabled>── Premium ──</option>
+                    <option value="tpl-premium-1">Elite Professional (Paid)</option>
+                    <option value="tpl-premium-2">Creative Sidebar (Paid)</option>
+                </select>
+                <button onclick="exportPDF()" class="bg-slate-900 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg hover:scale-105 transition">Download PDF</button>
+                <button onclick="logout()" class="text-gray-400 hover:text-red-500"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></button>
             </div>
         </div>
     </nav>
 
-    <!-- App Body -->
+    <!-- Main Workspace -->
     <div class="flex flex-1 overflow-hidden">
-        <aside class="w-1/3 bg-white border-r p-8 overflow-y-auto">
-            <div class="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                <h4 class="text-blue-800 text-xs font-bold uppercase mb-2">Import from LinkedIn</h4>
-                <div class="flex gap-2">
-                    <input type="text" id="li-url" placeholder="Paste Profile URL" class="flex-1 p-2 rounded text-sm border focus:ring-1 focus:ring-blue-500 outline-none">
-                    <button onclick="importLinkedIn()" id="importBtn" class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold">Go</button>
+        
+        <!-- Sidebar Editor -->
+        <aside class="w-[450px] bg-white border-r flex flex-col no-print">
+            
+            <!-- PDF Upload Header -->
+            <div class="p-6 bg-slate-50 border-b">
+                <h3 class="text-sm font-bold text-slate-800 uppercase mb-3 tracking-widest">Smart Import</h3>
+                <label class="flex flex-col items-center w-full px-4 py-4 bg-white text-blue rounded-lg shadow-sm border border-blue-200 cursor-pointer hover:bg-blue-50 transition">
+                    <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                    <span class="mt-2 text-xs font-semibold">Upload LinkedIn PDF</span>
+                    <input type='file' id="pdf-upload" class="hidden" accept="application/pdf" />
+                </label>
+            </div>
+
+            <!-- Sections Editor -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-8 editor-sidebar">
+                
+                <!-- Basic Info -->
+                <div class="space-y-4">
+                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-tighter">Identity</h4>
+                    <input type="text" id="field-name" placeholder="Full Name" oninput="updateData('name', this.value)" class="w-full border-b py-2 text-lg font-bold focus:border-blue-600 outline-none">
+                    <input type="text" id="field-contact" placeholder="Email | Phone | Location | LinkedIn" oninput="updateData('contact', this.value)" class="w-full border-b py-2 text-sm focus:border-blue-600 outline-none">
                 </div>
+
+                <!-- Dynamic Sections -->
+                <div id="dynamic-sections" class="space-y-6">
+                    <!-- Sections like Summary, Experience, etc. will be injected here -->
+                </div>
+
+                <!-- Add Custom Section -->
+                <button onclick="addCustomSection()" class="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-sm font-bold hover:border-blue-300 hover:text-blue-500 transition">+ Add Custom Section</button>
+                
+                <!-- Sidebar Ad -->
+                <div id="sidebarAd" class="ad-banner h-48 w-full rounded-xl mt-10">Advertisement</div>
             </div>
-            <div class="space-y-4">
-                <input type="text" id="in-name" oninput="sync()" placeholder="Full Name" class="w-full border p-2.5 rounded-lg text-sm">
-                <input type="text" id="in-contact" oninput="sync()" placeholder="Email | Phone | Location" class="w-full border p-2.5 rounded-lg text-sm">
-                <textarea id="in-summary" oninput="sync()" rows="3" placeholder="Summary" class="w-full border p-2.5 rounded-lg text-sm"></textarea>
-                <textarea id="in-exp" oninput="sync()" rows="10" placeholder="Experience (Use • for bullets)" class="w-full border p-2.5 rounded-lg text-sm font-mono"></textarea>
-            </div>
-            <div id="sidebarAd" class="mt-8 ad-box h-40 rounded-xl">Small Sidebar Ad</div>
         </aside>
 
-        <main class="flex-1 bg-slate-50 p-12 overflow-y-auto">
-            <div id="topAd" class="ad-box w-[728px] h-[90px] mx-auto mb-10 shadow-sm">Banner Ad Space</div>
-            <div id="resume-canvas" class="resume-page">
-                <header class="text-center mb-8"><h1 id="out-name">John Doe</h1><p id="out-contact">Contact details here</p></header>
-                <section><h2>Professional Summary</h2><p id="out-summary">Summary content...</p></section>
-                <section><h2>Experience</h2><div id="out-exp" class="whitespace-pre-line"></div></section>
+        <!-- Previewer -->
+        <main class="flex-1 bg-slate-100 overflow-y-auto p-12 flex flex-col items-center relative">
+            <div id="topAd" class="ad-banner w-[728px] h-[90px] mb-8 shrink-0">Banner Advertisement</div>
+            
+            <!-- The A4 Canvas -->
+            <div id="resume-canvas" class="tpl-modern shadow-2xl">
+                <div id="render-target">
+                    <!-- Resume content rendered here via JS -->
+                </div>
             </div>
+            
+            <div class="h-20"></div>
         </main>
     </div>
 
-    <!-- Legal Footer -->
-    <footer class="bg-white border-t py-4 px-8 flex justify-between text-[11px] text-gray-500">
-        <div>&copy; 2024 ResumePro</div>
-        <div class="flex gap-4">
-            <button onclick="openLegal('privacy')">Privacy Policy</button>
-            <button onclick="openLegal('terms')">Terms & Conditions</button>
-            <button onclick="openLegal('refund')">Refund Policy</button>
-            <button onclick="openLegal('contact')">Contact Us</button>
-        </div>
-    </footer>
+    <!-- Upgrade Modal -->
+    <div id="upgradeModal" class="fixed inset-0 bg-slate-900/80 hidden z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl">
+            <div class="text-center">
+                <div class="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="text-3xl">🚀</span>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900">Go Premium</h2>
+                <p class="text-slate-500 mt-2">Break the limits and get hired faster.</p>
+            </div>
+            
+            <div class="mt-8 space-y-4">
+                <div class="flex items-center gap-3 text-sm font-medium">✅ Unlimited PDF Downloads</div>
+                <div class="flex items-center gap-3 text-sm font-medium">✅ 10+ Premium ATS Templates</div>
+                <div class="flex items-center gap-3 text-sm font-medium">✅ Ad-Free Experience</div>
+                <div class="flex items-center gap-3 text-sm font-medium">✅ Priority Support</div>
+            </div>
 
-    <!-- Legal Modal -->
-    <div id="legalModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-[100] p-4">
-        <div class="bg-white w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl p-8 relative">
-            <button onclick="closeLegal()" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <div id="legalContent" class="prose prose-sm text-gray-700"></div>
+            <button onclick="processPayment()" class="w-full bg-blue-600 text-white py-4 rounded-xl mt-8 font-bold text-lg hover:bg-blue-700 shadow-lg shadow-blue-200 transition">Upgrade Now - ₹399</button>
+            <button onclick="hideUpgrade()" class="w-full mt-4 text-slate-400 font-medium">Maybe Later</button>
         </div>
     </div>
 
     <script>
+        // --- 1. CONFIG & INITIAL STATE ---
         const firebaseConfig = {
             apiKey: "AIzaSyCVgVQGsAReD3zG1NREX9dcl1HifizllaE",
             authDomain: "resume-builder-d94ec.firebaseapp.com",
@@ -100,120 +170,231 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
-        let userData = null;
 
+        let resumeData = {
+            name: "John Doe",
+            contact: "john@doe.com | +1 234 567 | New York",
+            template: "tpl-modern",
+            sections: [
+                { id: 'summary', title: 'Summary', content: '', enabled: true },
+                { id: 'experience', title: 'Work Experience', content: '', enabled: true },
+                { id: 'skills', title: 'Technical Skills', content: '', enabled: true },
+                { id: 'education', title: 'Education', content: '', enabled: true },
+                { id: 'projects', title: 'Projects', content: '', enabled: false },
+                { id: 'certs', title: 'Certifications', content: '', enabled: false }
+            ]
+        };
+
+        let userProfile = { isPremium: false, downloadCount: 0 };
+
+        // --- 2. AUTH ---
         document.getElementById('loginBtn').onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
         function logout() { auth.signOut(); location.reload(); }
 
         auth.onAuthStateChanged(async (user) => {
             if (user) {
-                document.getElementById('auth-section').classList.add('hidden');
-                document.getElementById('user-section').classList.remove('hidden');
-                const userRef = db.collection('users').doc(user.uid);
-                const doc = await userRef.get();
-                if (doc.exists) { userData = doc.data(); } 
-                else { userData = { isPremium: false, downloadCount: 0 }; await userRef.set(userData); }
-                updateUI();
-                if(userData.resume) {
-                    document.getElementById('in-name').value = userData.resume.name || "";
-                    document.getElementById('in-contact').value = userData.resume.contact || "";
-                    document.getElementById('in-summary').value = userData.resume.summary || "";
-                    document.getElementById('in-exp').value = userData.resume.exp || "";
-                    sync();
+                document.getElementById('auth-ui').classList.add('hidden');
+                document.getElementById('app-ui').classList.remove('hidden');
+                
+                const doc = await db.collection('users').doc(user.uid).get();
+                if (doc.exists) {
+                    userProfile = doc.data();
+                    if (userProfile.resumeData) resumeData = userProfile.resumeData;
+                } else {
+                    await db.collection('users').doc(user.uid).set(userProfile);
                 }
+                renderEditor();
+                renderPreview();
+                updatePremiumUI();
             }
         });
 
-        function sync() {
-            document.getElementById('out-name').innerText = document.getElementById('in-name').value || "Name";
-            document.getElementById('out-contact').innerText = document.getElementById('in-contact').value || "Contact";
-            document.getElementById('out-summary').innerText = document.getElementById('in-summary').value || "Summary...";
-            document.getElementById('out-exp').innerText = document.getElementById('in-exp').value || "Experience...";
-            if(auth.currentUser) {
-                db.collection('users').doc(auth.currentUser.uid).update({
-                    resume: {
-                        name: document.getElementById('in-name').value,
-                        contact: document.getElementById('in-contact').value,
-                        summary: document.getElementById('in-summary').value,
-                        exp: document.getElementById('in-exp').value
-                    }
-                });
-            }
-        }
+        // --- 3. CORE LOGIC: EDITOR & PREVIEW ---
+        function renderEditor() {
+            document.getElementById('field-name').value = resumeData.name;
+            document.getElementById('field-contact').value = resumeData.contact;
+            
+            const container = document.getElementById('dynamic-sections');
+            container.innerHTML = "";
 
-        async function downloadPDF() {
-            if (!userData.isPremium && userData.downloadCount >= 1) return alert("Monthly Limit Reached. Upgrade for unlimited downloads.");
-            const element = document.getElementById('resume-canvas');
-            html2pdf().from(element).save().then(async () => {
-                userData.downloadCount++;
-                await db.collection('users').doc(auth.currentUser.uid).update({ downloadCount: userData.downloadCount });
-                updateUI();
+            resumeData.sections.forEach((section, index) => {
+                const div = document.createElement('div');
+                div.className = `p-4 border rounded-xl bg-white shadow-sm ${!section.enabled ? 'opacity-50' : ''}`;
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-gray-300 font-bold">#${index+1}</span>
+                            <input type="text" value="${section.title}" oninput="updateSectionTitle(${index}, this.value)" class="font-bold text-xs uppercase tracking-widest outline-none bg-transparent">
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="moveSection(${index}, -1)" class="text-gray-400 hover:text-blue-500">↑</button>
+                            <button onclick="moveSection(${index}, 1)" class="text-gray-400 hover:text-blue-500">↓</button>
+                            <input type="checkbox" ${section.enabled ? 'checked' : ''} onchange="toggleSection(${index})">
+                        </div>
+                    </div>
+                    <textarea oninput="updateSectionContent(${index}, this.value)" rows="4" class="w-full text-sm outline-none border-none bg-slate-50 p-2 rounded focus:ring-1 focus:ring-blue-100">${section.content}</textarea>
+                `;
+                container.appendChild(div);
             });
         }
 
-        function updateUI() {
-            document.getElementById('downloadStatus').innerText = userData.isPremium ? "Premium: ∞" : `Free: ${1 - userData.downloadCount}/1 Left`;
-            if(userData.isPremium) { document.getElementById('sidebarAd').remove(); document.getElementById('topAd').remove(); }
+        function renderPreview() {
+            const target = document.getElementById('render-target');
+            let html = `
+                <div class="text-center mb-8">
+                    <h1 class="text-4xl font-bold mb-2">${resumeData.name}</h1>
+                    <p class="text-sm opacity-80">${resumeData.contact}</p>
+                </div>
+            `;
+
+            resumeData.sections.forEach(sec => {
+                if (sec.enabled && sec.content.trim() !== "") {
+                    html += `
+                        <div class="mb-6">
+                            <h2 class="text-sm font-bold uppercase tracking-widest mb-3 pb-1 border-b">${sec.title}</h2>
+                            <div class="text-[10.5pt] leading-relaxed whitespace-pre-line">${sec.content}</div>
+                        </div>
+                    `;
+                }
+            });
+
+            target.innerHTML = html;
+            autoSave();
         }
 
-        async function importLinkedIn() {
-            const url = document.getElementById('li-url').value;
-            const apiKey = "69ef4346c6c432734bc89b9d"; // <--- Paste your key here
+        // --- 4. STATE MANAGEMENT ---
+        function updateData(key, val) { resumeData[key] = val; renderPreview(); }
+        function updateSectionTitle(idx, val) { resumeData.sections[idx].title = val; renderPreview(); }
+        function updateSectionContent(idx, val) { resumeData.sections[idx].content = val; renderPreview(); }
+        function toggleSection(idx) { resumeData.sections[idx].enabled = !resumeData.sections[idx].enabled; renderEditor(); renderPreview(); }
         
-            if (!url) return alert("Please paste a LinkedIn URL");
-            
-            // Scrapingdog needs the "username" from the URL
-            // Example: https://www.linkedin.com/in/saurabh-dev/ -> "saurabh-dev"
-            const profileId = url.split('/in/')[1]?.replace('/', '');
-            if (!profileId) return alert("Invalid LinkedIn URL format.");
-        
-            const btn = document.getElementById('importBtn');
-            btn.innerText = "Importing...";
-            btn.disabled = true;
-        
-            try {
-                // Scrapingdog Endpoint
-                const apiUrl = `https://api.scrapingdog.com/profile/?api_key=${apiKey}&type=profile&id=${profileId}`;
-                
-                const response = await fetch(apiUrl);
-                const data = await response.json();
-        
-                if (data.error) throw new Error(data.error);
-        
-                // Mapping Scrapingdog data to your Resume
-                document.getElementById('in-name').value = (data.first_name + " " + data.last_name) || "User Name";
-                document.getElementById('in-summary').value = data.summary || "Professional summary not found.";
-                
-                // Mapping Experience
-                let expText = "";
-                if (data.experience && data.experience.length > 0) {
-                    data.experience.forEach(exp => {
-                        expText += `${exp.company} | ${exp.title}\n`;
-                        expText += `• ${exp.description || 'Professional role'}\n\n`;
-                    });
+        function moveSection(idx, dir) {
+            const newIdx = idx + dir;
+            if (newIdx < 0 || newIdx >= resumeData.sections.length) return;
+            const temp = resumeData.sections[idx];
+            resumeData.sections[idx] = resumeData.sections[newIdx];
+            resumeData.sections[newIdx] = temp;
+            renderEditor();
+            renderPreview();
+        }
+
+        function addCustomSection() {
+            resumeData.sections.push({ id: Date.now().toString(), title: 'New Section', content: '', enabled: true });
+            renderEditor();
+        }
+
+        function changeTemplate(tpl) {
+            if (tpl.includes('premium') && !userProfile.isPremium) {
+                showUpgrade();
+                document.getElementById('templateSelector').value = resumeData.template;
+                return;
+            }
+            resumeData.template = tpl;
+            document.getElementById('resume-canvas').className = tpl;
+            renderPreview();
+        }
+
+        let saveTimeout;
+        function autoSave() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(async () => {
+                if (auth.currentUser) {
+                    await db.collection('users').doc(auth.currentUser.uid).update({ resumeData });
                 }
-                document.getElementById('in-exp').value = expText;
-        
-                sync(); // Refresh the real-time preview
-                alert("Import Successful! 1,000 credits used wisely.");
-        
-            } catch (error) {
-                console.error(error);
-                alert("Import failed. Check if the profile is Public or if you have credits left.");
-            } finally {
-                btn.innerText = "Go";
-                btn.disabled = false;
+            }, 2000);
+        }
+
+        // --- 5. PDF PARSER (LinkedIn PDF to Text) ---
+        document.getElementById('pdf-upload').onchange = async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function() {
+                const typedarray = new Uint8Array(this.result);
+                const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                let fullText = "";
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    fullText += content.items.map(item => item.str).join(" ") + "\n";
+                }
+
+                smartParse(fullText);
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
+        function smartParse(text) {
+            // Basic extraction logic (Regex based)
+            resumeData.name = text.split(" Contact ")[0]?.trim() || "Parsed Name";
+            
+            // Look for sections
+            const sections = [
+                { key: 'Summary', id: 'summary' },
+                { key: 'Experience', id: 'experience' },
+                { key: 'Education', id: 'education' },
+                { key: 'Skills', id: 'skills' }
+            ];
+
+            sections.forEach(s => {
+                const regex = new RegExp(`${s.key}\\s*(.*?)\\s*(Education|Experience|Skills|Projects|Certifications|$)`, 'i');
+                const match = text.match(regex);
+                if (match && match[1]) {
+                    const targetIdx = resumeData.sections.findIndex(sec => sec.id === s.id);
+                    if (targetIdx !== -1) resumeData.sections[targetIdx].content = match[1].trim();
+                }
+            });
+
+            renderEditor();
+            renderPreview();
+            alert("PDF parsed! Please review the auto-filled fields.");
+        }
+
+        // --- 6. EXPORT & PREMIUM ---
+        async function exportPDF() {
+            if (!userProfile.isPremium && userProfile.downloadCount >= 1) {
+                showUpgrade();
+                return;
+            }
+
+            const element = document.getElementById('resume-canvas');
+            const opt = {
+                margin: 0,
+                filename: 'Professional_Resume.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(async () => {
+                if (!userProfile.isPremium) {
+                    userProfile.downloadCount++;
+                    await db.collection('users').doc(auth.currentUser.uid).update({ downloadCount: userProfile.downloadCount });
+                    updatePremiumUI();
+                }
+            });
+        }
+
+        function showUpgrade() { document.getElementById('upgradeModal').classList.remove('hidden'); }
+        function hideUpgrade() { document.getElementById('upgradeModal').classList.add('hidden'); }
+
+        async function processPayment() {
+            alert("In production, this redirects to Razorpay. Simulation: Upgrading to Premium...");
+            userProfile.isPremium = true;
+            await db.collection('users').doc(auth.currentUser.uid).update({ isPremium: true });
+            updatePremiumUI();
+            hideUpgrade();
+        }
+
+        function updatePremiumUI() {
+            if (userProfile.isPremium) {
+                document.getElementById('sidebarAd').remove();
+                document.getElementById('topAd').remove();
+                document.querySelector('button[onclick="showUpgrade()"]').innerHTML = "✨ PREMIUM";
             }
         }
-
-        const legalData = {
-            privacy: "<h2>Privacy Policy</h2><p>We store your email and resume data in Firebase.</p>",
-            terms: "<h2>Terms</h2><p>Free users get 1 download/month.</p>",
-            refund: "<h2>Refunds</h2><p>Digital downloads are non-refundable.</p>",
-            contact: "<h2>Contact</h2><p>Email: support@resume-builder-d94ec.web.app</p>"
-        };
-        function openLegal(t) { document.getElementById('legalContent').innerHTML = legalData[t]; document.getElementById('legalModal').classList.remove('hidden'); }
-        function closeLegal() { document.getElementById('legalModal').classList.add('hidden'); }
     </script>
 </body>
 </html>
