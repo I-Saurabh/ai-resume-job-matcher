@@ -42,3 +42,15 @@ echo ".firebase/" >> .gitignore
 echo "node_modules/" >> .gitignore
 echo "firebase-debug.log" >> .gitignore
 git status
+git add .
+git commit -m "initial commit"
+git remote add origin https://github.com/I-Saurabh/ai-resume-job-matcher.git
+git push -u origin main --force
+firebase init hosting:github
+firebase init hosting:github\
+curl "http://localhost:9005/?code=50743a0a6df7c1e59739&state=213428224"
+firebase init hosting:github
+curl "http://localhost:9005/?code=039ba4b67948b2612596&state=17803405"
+gcloud services enable iam.googleapis.com
+mkdir -p .github/workflows
+nano .github/workflows/firebase-hosting-merge.yml
