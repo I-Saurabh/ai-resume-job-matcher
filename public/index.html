@@ -157,11 +157,53 @@
         }
 
         async function importLinkedIn() {
-            alert("LinkedIn Import is simulated. Connect ProxyCurl API key in script to activate.");
-            document.getElementById('in-name').value = "Sample Candidate";
-            document.getElementById('in-summary').value = "Expert Software Developer with focus on ATS optimization.";
-            document.getElementById('in-exp').value = "Google | Software Engineer\n• Increased efficiency by 20%";
-            sync();
+            const url = document.getElementById('li-url').value;
+            const apiKey = "69ef4346c6c432734bc89b9d"; // <--- Paste your key here
+        
+            if (!url) return alert("Please paste a LinkedIn URL");
+            
+            // Scrapingdog needs the "username" from the URL
+            // Example: https://www.linkedin.com/in/saurabh-dev/ -> "saurabh-dev"
+            const profileId = url.split('/in/')[1]?.replace('/', '');
+            if (!profileId) return alert("Invalid LinkedIn URL format.");
+        
+            const btn = document.getElementById('importBtn');
+            btn.innerText = "Importing...";
+            btn.disabled = true;
+        
+            try {
+                // Scrapingdog Endpoint
+                const apiUrl = `https://api.scrapingdog.com/profile/?api_key=${apiKey}&type=profile&id=${profileId}`;
+                
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+        
+                if (data.error) throw new Error(data.error);
+        
+                // Mapping Scrapingdog data to your Resume
+                document.getElementById('in-name').value = (data.first_name + " " + data.last_name) || "User Name";
+                document.getElementById('in-summary').value = data.summary || "Professional summary not found.";
+                
+                // Mapping Experience
+                let expText = "";
+                if (data.experience && data.experience.length > 0) {
+                    data.experience.forEach(exp => {
+                        expText += `${exp.company} | ${exp.title}\n`;
+                        expText += `• ${exp.description || 'Professional role'}\n\n`;
+                    });
+                }
+                document.getElementById('in-exp').value = expText;
+        
+                sync(); // Refresh the real-time preview
+                alert("Import Successful! 1,000 credits used wisely.");
+        
+            } catch (error) {
+                console.error(error);
+                alert("Import failed. Check if the profile is Public or if you have credits left.");
+            } finally {
+                btn.innerText = "Go";
+                btn.disabled = false;
+            }
         }
 
         const legalData = {
